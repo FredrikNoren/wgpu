@@ -5,6 +5,12 @@ use winit::{
     window::Window,
 };
 
+#[repr(C)]
+#[derive(Debug, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
+struct Uniforms {
+    color: [f32; 4],
+}
+
 async fn run(event_loop: EventLoop<()>, window: Window) {
     let size = window.inner_size();
     let instance = wgpu::Instance::new(wgpu::BackendBit::all());
@@ -38,17 +44,11 @@ async fn run(event_loop: EventLoop<()>, window: Window) {
         flags: wgpu::ShaderFlags::all(),
     });
 
-    let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-        label: None,
-        bind_group_layouts: &[],
-        push_constant_ranges: &[],
-    });
-
     let swapchain_format = adapter.get_swap_chain_preferred_format(&surface).unwrap();
 
     let render_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
         label: None,
-        layout: Some(&pipeline_layout),
+        layout: None,
         vertex: wgpu::VertexState {
             module: &shader,
             entry_point: "vs_main",
@@ -64,6 +64,27 @@ async fn run(event_loop: EventLoop<()>, window: Window) {
         multisample: wgpu::MultisampleState::default(),
     });
 
+    let bind_group_index = 1;
+    let layout = render_pipeline.get_bind_group_layout(bind_group_index);
+    let uniform_buffer = device.create_buffer(&wgpu::BufferDescriptor {
+        label: Some("Uniform Buffer"),
+        usage: wgpu::BufferUsage::UNIFORM | wgpu::BufferUsage::COPY_DST,
+        size: std::mem::size_of::<Uniforms>() as u64,
+        mapped_at_creation: false,
+    });
+
+    let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+        layout: &layout,
+        entries: &[wgpu::BindGroupEntry {
+            binding: 0,
+            resource: wgpu::BindingResource::Buffer(uniform_buffer.as_entire_buffer_binding()),
+        }],
+        label: Some("Bind group"),
+    });
+    queue.write_buffer(&uniform_buffer, 0, bytemuck::cast_slice(&[Uniforms {
+        color: [0.1, 0.2, 0.9, 1.0]
+    }]));
+
     let mut sc_desc = wgpu::SwapChainDescriptor {
         usage: wgpu::TextureUsage::RENDER_ATTACHMENT,
         format: swapchain_format,
@@ -78,7 +99,7 @@ async fn run(event_loop: EventLoop<()>, window: Window) {
         // Have the closure take ownership of the resources.
         // `event_loop.run` never returns, therefore we must do this to ensure
         // the resources are properly cleaned up.
-        let _ = (&instance, &adapter, &shader, &pipeline_layout);
+        let _ = (&instance, &adapter, &shader);
 
         *control_flow = ControlFlow::Wait;
         match event {
@@ -112,6 +133,7 @@ async fn run(event_loop: EventLoop<()>, window: Window) {
                         depth_stencil_attachment: None,
                     });
                     rpass.set_pipeline(&render_pipeline);
+                    rpass.set_bind_group(bind_group_index, &bind_group, &[]);
                     rpass.draw(0..3, 0..1);
                 }
 
