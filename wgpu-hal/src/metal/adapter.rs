@@ -875,7 +875,8 @@ impl super::PrivateCapabilities {
             | F::VERTEX_WRITABLE_STORAGE
             | F::TEXTURE_ADAPTER_SPECIFIC_FORMAT_FEATURES
             | F::POLYGON_MODE_LINE
-            | F::CLEAR_COMMANDS;
+            | F::CLEAR_COMMANDS
+            | F::MULTI_DRAW_INDIRECT;
 
         features.set(F::DEPTH_CLAMPING, self.supports_depth_clamping);
 

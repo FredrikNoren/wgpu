@@ -83,6 +83,16 @@ fn create_texels(size: usize) -> Vec<u8> {
         .collect()
 }
 
+#[repr(C)]
+#[derive(Debug, Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
+pub struct DrawIndexedIndirect {
+    vertex_count: u32,
+    instance_count: u32,
+    base_index: u32,
+    vertex_offset: i32,
+    base_instance: u32,
+}
+
 struct Example {
     vertex_buf: wgpu::Buffer,
     index_buf: wgpu::Buffer,
@@ -91,6 +101,7 @@ struct Example {
     uniform_buf: wgpu::Buffer,
     pipeline: wgpu::RenderPipeline,
     pipeline_wire: Option<wgpu::RenderPipeline>,
+    commands: wgpu::Buffer,
 }
 
 impl Example {
@@ -109,6 +120,9 @@ impl Example {
 impl framework::Example for Example {
     fn optional_features() -> wgt::Features {
         wgt::Features::POLYGON_MODE_LINE
+    }
+    fn required_features() -> wgpu::Features {
+        wgt::Features::MULTI_DRAW_INDIRECT
     }
 
     fn init(
@@ -131,6 +145,24 @@ impl framework::Example for Example {
             label: Some("Index Buffer"),
             contents: bytemuck::cast_slice(&index_data),
             usage: wgpu::BufferUsages::INDEX,
+        });
+
+        let commands = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Commands Buffer"),
+            contents: bytemuck::cast_slice(&[DrawIndexedIndirect {
+                vertex_count: index_data.len() as u32,
+                instance_count: 1,
+                base_index: 0,
+                vertex_offset: 0,
+                base_instance: 0,
+            }, DrawIndexedIndirect {
+                vertex_count: index_data.len() as u32,
+                instance_count: 1,
+                base_index: 0,
+                vertex_offset: 0,
+                base_instance: 1,
+            }]),
+            usage: wgpu::BufferUsages::INDIRECT,
         });
 
         // Create pipeline layout
@@ -310,6 +342,7 @@ impl framework::Example for Example {
             uniform_buf,
             pipeline,
             pipeline_wire,
+            commands,
         }
     }
 
@@ -362,7 +395,8 @@ impl framework::Example for Example {
             rpass.set_vertex_buffer(0, self.vertex_buf.slice(..));
             rpass.pop_debug_group();
             rpass.insert_debug_marker("Draw!");
-            rpass.draw_indexed(0..self.index_count as u32, 0, 0..1);
+            rpass.multi_draw_indexed_indirect(&self.commands, 0, 2);
+            // rpass.draw_indexed(0..self.index_count as u32, 0, 0..1);
             if let Some(ref pipe) = self.pipeline_wire {
                 rpass.set_pipeline(pipe);
                 rpass.draw_indexed(0..self.index_count as u32, 0, 0..1);
