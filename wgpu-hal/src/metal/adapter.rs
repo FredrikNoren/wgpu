@@ -930,7 +930,8 @@ impl super::PrivateCapabilities {
             | F::PUSH_CONSTANTS
             | F::POLYGON_MODE_LINE
             | F::CLEAR_COMMANDS
-            | F::TEXTURE_FORMAT_16BIT_NORM;
+            | F::TEXTURE_FORMAT_16BIT_NORM
+            | F::MULTI_DRAW_INDIRECT;
 
         features.set(F::DEPTH_CLIP_CONTROL, self.supports_depth_clip_control);
 
