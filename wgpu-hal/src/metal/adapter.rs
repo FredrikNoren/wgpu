@@ -755,7 +755,8 @@ impl super::PrivateCapabilities {
             | F::PUSH_CONSTANTS
             | F::POLYGON_MODE_LINE
             | F::CLEAR_TEXTURE
-            | F::TEXTURE_FORMAT_16BIT_NORM;
+            | F::TEXTURE_FORMAT_16BIT_NORM
+            | F::MULTI_DRAW_INDIRECT;
 
         features.set(F::TEXTURE_COMPRESSION_ASTC_LDR, self.format_astc);
         features.set(F::TEXTURE_COMPRESSION_ASTC_HDR, self.format_astc_hdr);
